@@ -10,8 +10,17 @@ from pathlib import Path
 import screener
 
 # Cascading Gemini model fallbacks for resilience against 503/429 errors
-MODELS_CASCADE = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash-lite"]
-MAX_RETRIES_PER_MODEL = 3
+# Each model has its own independent free-tier quota bucket
+MODELS_CASCADE = [
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-flash-lite-latest",
+    "gemini-2.0-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-3-flash-preview",
+]
+MAX_RETRIES_PER_MODEL = 2
 
 
 def call_gemini_with_failover(prompt: str) -> dict:
@@ -34,7 +43,7 @@ def call_gemini_with_failover(prompt: str) -> dict:
                 response = requests.post(url, headers=headers, json=payload, timeout=30)
             except requests.RequestException as e:
                 last_error = e
-                wait = (2 ** attempt) + random.uniform(0, 1)
+                wait = (3 ** attempt) + random.uniform(1, 3)
                 print(f"[Gemini] {model} network error: {e}; retry in {wait:.1f}s")
                 time.sleep(wait)
                 continue
@@ -49,7 +58,7 @@ def call_gemini_with_failover(prompt: str) -> dict:
 
             if response.status_code in (503, 429):
                 last_error = Exception(f"{model} returned {response.status_code}: {response.text[:200]}")
-                wait = (2 ** attempt) + random.uniform(0, 1)
+                wait = (4 ** attempt) + random.uniform(2, 5)
                 print(f"[Gemini] {model} status {response.status_code}; retry {attempt + 1}/{MAX_RETRIES_PER_MODEL} in {wait:.1f}s")
                 time.sleep(wait)
                 continue

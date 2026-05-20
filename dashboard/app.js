@@ -190,8 +190,24 @@ async function openAIAnalysis(ticker) {
       throw new Error(data.message || "Failed to retrieve analysis.");
     }
   } catch (err) {
-    $("ai-dialog").close();
-    alert("AI Analysis Error: " + err.message);
+    $("ai-loading").style.display = "none";
+    $("ai-report-body").style.display = "none";
+    
+    // Show a user-friendly message instead of raw API errors
+    let msg = err.message || "Unknown error";
+    if (msg.includes("429") || msg.includes("quota") || msg.includes("exhausted")) {
+      msg = "⏳ Gemini free-tier rate limit reached. Please wait 1-2 minutes and try again — quotas reset automatically.";
+    } else if (msg.includes("503") || msg.includes("UNAVAILABLE")) {
+      msg = "⏳ Gemini servers are temporarily busy. Please try again in a moment.";
+    }
+    
+    $(("ai-situation")).textContent = msg;
+    $(("ai-verdict-badge")).textContent = "—";
+    $(("ai-verdict-badge")).className = "verdict-hold";
+    $(("ai-confidence-value")).textContent = "—";
+    $(("ai-bull-list")).innerHTML = "";
+    $(("ai-bear-list")).innerHTML = "";
+    $(("ai-report-body")).style.display = "block";
   }
 }
 

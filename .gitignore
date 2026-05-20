@@ -4,6 +4,9 @@
 *.env
 !.env.example
 
+# Local config (contains secrets) — see config.example.json
+config.json
+
 # Python
 __pycache__/
 *.pyc
