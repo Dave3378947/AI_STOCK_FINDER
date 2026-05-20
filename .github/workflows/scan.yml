@@ -1,0 +1,53 @@
+name: 24/7 AI Stock Scan
+
+on:
+  schedule:
+    # Every 30 minutes, around the clock
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}  # allow manual triggering from the Actions tab
+
+# Prevent overlapping runs if a scan exceeds 30 min
+concurrency:
+  group: scan
+  cancel-in-progress: false
+
+permissions:
+  contents: write  # needed to commit results.json back so new-match detection persists
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Run single scan
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
+        run: python scan_once.py
+
+      - name: Persist results.json for next run
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results.json last_results.json 2>/dev/null || true
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: update scan results [skip ci]"
+            git push
+          else
+            echo "No result changes to commit."
+          fi

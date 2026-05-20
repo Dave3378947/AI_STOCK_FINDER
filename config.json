@@ -1,0 +1,22 @@
+{
+  "email": {
+    "sender": "",
+    "password": "",
+    "recipient": ""
+  },
+  "filters": {
+    "min_beta": 0.5,
+    "min_volume_spike": 0.5,
+    "min_price_change_pct": -5.0,
+    "min_market_cap_million": 100
+  },
+  "sectors": [],
+  "alerts": {
+    "new_match": true,
+    "volume_spike": true,
+    "price_breakout": false,
+    "daily_digest": true,
+    "ai_buy_alerts": true
+  },
+  "universe": "us_all"
+}

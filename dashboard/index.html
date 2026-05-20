@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Stock Screener Terminal</title>
+<link rel="stylesheet" href="style.css" />
+<!-- Premium Charts CDN -->
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+</head>
+<body>
+<header>
+  <h1>Stock Screener Terminal</h1>
+  <div class="status">
+    <span id="market-status" class="badge">—</span>
+    <span id="last-scan">Last scan: —</span>
+  </div>
+</header>
+
+<section class="metrics">
+  <div class="card"><div class="label">Stocks matched</div><div id="m-matched" class="value">0</div></div>
+  <div class="card"><div class="label">Stocks scanned</div><div id="m-scanned" class="value">0</div></div>
+  <div class="card"><div class="label">Alerts (session)</div><div id="m-alerts" class="value">0</div></div>
+  <div class="card"><div class="label">Market</div><div id="m-market" class="value">—</div></div>
+</section>
+
+<section class="controls">
+  <input id="search" type="text" placeholder="Search by ticker, name, sector or trend..." />
+  <select id="signal-filter">
+    <option value="">All signals</option>
+    <option>Strong buy</option>
+    <option>Breakout</option>
+    <option>Momentum</option>
+  </select>
+  <button id="refresh-btn">Scan Now</button>
+  <button id="settings-btn">Screener Config</button>
+</section>
+
+<section class="table-wrap">
+  <table id="results-table">
+    <thead>
+      <tr>
+        <th>Ticker</th>
+        <th>Company</th>
+        <th>Price</th>
+        <th>24h %</th>
+        <th>Volume Spike</th>
+        <th>Beta</th>
+        <th>RSI (14)</th>
+        <th>Trend</th>
+        <th>Signal</th>
+        <th>Sector</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="results-body">
+      <tr><td colspan="11" class="empty">Loading results…</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- Screener Configuration Modal -->
+<dialog id="settings-dialog">
+  <form method="dialog" id="settings-form">
+    <h2>Screener Configuration</h2>
+    <label>Min Beta <input type="number" step="0.1" id="cfg-beta" required></label>
+    <label>Min Volume Spike (x) <input type="number" step="0.1" id="cfg-vol" required></label>
+    <label>Min 24h Change % <input type="number" step="0.1" id="cfg-change" required></label>
+    <label>Min Market Cap ($M) <input type="number" step="10" id="cfg-mcap" required></label>
+    <p class="note">Adjusting settings will rewrite <code>config.json</code> in real-time through the custom API server.</p>
+    <div class="actions">
+      <button value="cancel" type="button" id="cancel-settings">Cancel</button>
+      <button id="save-settings" type="submit">Save Settings</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Interactive ApexChart Modal -->
+<dialog id="chart-dialog">
+  <div class="chart-modal-content" style="min-width: 480px; width: 100%;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <div>
+        <h2 id="chart-title" style="margin:0; font-size: 20px; color:#fff;">Stock Price Trend</h2>
+        <p id="chart-subtitle" class="note" style="margin: 4px 0 0;">30-day price performance history</p>
+      </div>
+      <button id="close-chart-btn" style="background:transparent; border:none; color:#94a3b8; font-size: 24px; cursor:pointer; line-height: 1;">&times;</button>
+    </div>
+    <div id="chart-area" style="background: rgba(15, 23, 42, 0.4); border-radius: 12px; padding: 10px;"></div>
+  </div>
+</dialog>
+
+<!-- Glassmorphic AI Analyst Modal -->
+<dialog id="ai-dialog">
+  <div class="ai-modal-content" style="min-width: 480px; max-width: 600px; width: 100%;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 12px;">
+      <div>
+        <h2 id="ai-title" style="margin:0; font-size: 20px; color:#fff; display: flex; align-items: center; gap: 8px;">
+          <span>🤖</span> AI Financial Analyst
+        </h2>
+        <p id="ai-subtitle" class="note" style="margin: 4px 0 0;">Generative insights & recommendation engine</p>
+      </div>
+      <button id="close-ai-btn" style="background:transparent; border:none; color:#94a3b8; font-size: 24px; cursor:pointer; line-height: 1;">&times;</button>
+    </div>
+    
+    <!-- Pulsing Neural Loading State -->
+    <div id="ai-loading" class="ai-loading-container" style="display: none; flex-direction: column; align-items: center; justify-content: center; padding: 40px 0; gap: 16px;">
+      <div class="pulse-ring"></div>
+      <p style="color: #a5b4fc; font-weight: 500; font-size: 14px; animation: textPulse 1.5s infinite;">Consulting neural financial networks...</p>
+    </div>
+
+    <!-- AI Report Content -->
+    <div id="ai-report-body" style="display: none;">
+      <!-- Verdict Section -->
+      <div class="ai-verdict-card" style="display: flex; justify-content: space-between; align-items: center; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.15); border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+        <div>
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; font-weight: 600;">AI Consensus Verdict</div>
+          <div id="ai-verdict-badge" style="font-size: 22px; font-weight: 800; margin-top: 4px;">—</div>
+        </div>
+        <div style="text-align: right;">
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; font-weight: 600;">Recommendation Confidence</div>
+          <div id="ai-confidence-value" style="font-size: 22px; font-weight: 800; color: #a5b4fc; margin-top: 4px;">—</div>
+        </div>
+      </div>
+
+      <!-- Analysis sections -->
+      <div class="ai-section" style="margin-bottom: 18px;">
+        <h3 style="font-size: 13px; text-transform: uppercase; color: #a5b4fc; margin-bottom: 6px; letter-spacing: 0.05em;">Company Situation</h3>
+        <p id="ai-situation" style="font-size: 14px; color: #cbd5e1; line-height: 1.5;"></p>
+      </div>
+
+      <div class="ai-section" style="margin-bottom: 18px;">
+        <h3 style="font-size: 13px; text-transform: uppercase; color: #34d399; margin-bottom: 6px; letter-spacing: 0.05em;">Bull Case (Upside)</h3>
+        <ul id="ai-bull-list" style="font-size: 14px; color: #cbd5e1; padding-left: 20px; line-height: 1.5;"></ul>
+      </div>
+
+      <div class="ai-section" style="margin-bottom: 18px;">
+        <h3 style="font-size: 13px; text-transform: uppercase; color: #f87171; margin-bottom: 6px; letter-spacing: 0.05em;">Bear Case (Risks)</h3>
+        <ul id="ai-bear-list" style="font-size: 14px; color: #cbd5e1; padding-left: 20px; line-height: 1.5;"></ul>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>
